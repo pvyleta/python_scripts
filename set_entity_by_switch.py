@@ -44,7 +44,6 @@ def get_service(entity_id):
     # Ensure the entity domain is supported
     domain = output_entity.split('.')[0]
     if domain not in service_map:
-        logger.error(f"Unsupported domain {domain} for entity {entity_id}.")
         raise ValueError(f"Unsupported domain {domain} for entity {entity_id}.")
 
     service, service_action, parameter_name = service_map[domain]
@@ -68,12 +67,10 @@ off_value = data['off_value']
 # Check entity existence
 output_state = hass.states.get(output_entity)
 if output_state is None:
-    logger.error(f"Output entity {output_entity} not found.")
     raise ValueError(f"Output entity {output_entity} does not exist.")
 
 switch_state = hass.states.get(input_switch)
 if switch_state is None:
-    logger.error(f"Switch entity {input_switch} not found.")
     raise ValueError(f"Switch entity {input_switch} does not exist.")
 
 # Determine the value to set based on the switch state

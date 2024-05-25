@@ -55,7 +55,6 @@ def get_service(entity_id):
     # Ensure the entity domain is supported
     domain = output_entity.split('.')[0]
     if domain not in service_map:
-        logger.error(f"Unsupported domain {domain} for entity {entity_id}.")
         raise ValueError(f"Unsupported domain {domain} for entity {entity_id}.")
 
     service, service_action, parameter_name = service_map[domain]
@@ -83,21 +82,18 @@ close_value = data.get('close_value')
 
 # Check all parameters
 if not all([inside_temp_sensor, outside_temp_sensor, output_entity, open_value, close_value]):
-    logger.error("Missing one or more required parameters.")
     raise ValueError("All parameters must be provided.")
 
 # Entity existence check
 if any(hass.states.get(entity) is None for entity in [inside_temp_sensor, outside_temp_sensor, output_entity]):
-    logger.error("One or more specified entities do not exist.")
     raise ValueError("Specified entities must exist in Home Assistant.")
 
 # Read and convert temperatures
 try:
     inside_temp = float(hass.states.get(inside_temp_sensor).state)
     outside_temp = float(hass.states.get(outside_temp_sensor).state)
-except ValueError:
-    logger.error("Invalid temperature data.")
-    raise ValueError("Temperature sensor states must be convertible to float.")
+except ValueError as e:
+    raise ValueError(f"Temperature sensor states must be convertible to float: {e}")
 
 # Calculate temperature difference
 diff_temp = inside_temp - outside_temp

@@ -31,7 +31,6 @@ Example usage:
   mode: single
 """
 
-
 def get_co2_ppm(value):
     try:
         return int(float(value))
@@ -39,9 +38,7 @@ def get_co2_ppm(value):
         # use 400 (atmosphere level) if unknown
         return 400
 
-
 def get_service(entity_id):
-    
     # Define a mapping of entity domains to their corresponding service and service attribute
     service_map = {
         'number': ('number', 'set_value', 'value'),
@@ -58,12 +55,10 @@ def get_service(entity_id):
     # Ensure the entity domain is supported
     domain = output_entity.split('.')[0]
     if domain not in service_map:
-        logger.error(f"Unsupported domain {domain} for entity {entity_id}.")
         raise ValueError(f"Unsupported domain {domain} for entity {entity_id}.")
-
+    
     service, service_action, parameter_name = service_map[domain]
     return service, service_action, parameter_name 
-
 
 def set_entity(entity_id, value):
     service, service_action, parameter_name = get_service(entity_id)
@@ -72,7 +67,6 @@ def set_entity(entity_id, value):
         parameter_name: value
     }, False)
 
-
 # Retrieve and validate input parameters
 modes = data.get('modes', {})
 input_entities = data.get('input_entities')
@@ -80,7 +74,6 @@ output_entity = data.get('output_entity')
 
 # Check all parameters
 if not all([modes, input_entities, output_entity, output_entity]):
-    logger.error("Missing one or more required parameters.")
     raise ValueError("All parameters must be provided.")
 
 # Retrieve and process CO2 sensor values
@@ -100,6 +93,27 @@ for mode, ppm in modes.items():
         target_mode = mode
         target_ppm = ppm
 
-# Log the results and set the mode
-logger.info(f"CO2 levels: {ppm_values} Max PPM: {max_ppm_value} Selected Mode: {target_mode}")
-set_entity(output_entity, target_mode)
+# Retrieve the previous modes from the input_text entity
+previous_modes_str = hass.states.get('input_text.previous_modes').state
+previous_modes = previous_modes_str.split(',') if previous_modes_str else []
+
+# Append the current target mode to the previous modes list
+previous_modes.append(target_mode)
+
+# Ensure the list does not exceed three entries
+if len(previous_modes) > 3:
+    previous_modes.pop(0)
+
+# Update the input_text entity with the new previous modes
+hass.services.call('input_text', 'set_value', {
+    'entity_id': 'input_text.previous_modes',
+    'value': ','.join(previous_modes)
+}, False)
+
+# Check if the last three modes are the same
+if len(previous_modes) == 3 and all(mode == previous_modes[0] for mode in previous_modes):
+    # Log the results and set the mode
+    logger.info(f"CO2 levels: {ppm_values} Max PPM: {max_ppm_value} Selected Mode: {target_mode}")
+    set_entity(output_entity, target_mode)
+else:
+    logger.info(f"CO2 levels: {ppm_values} Max PPM: {max_ppm_value} Mode not changed due to insufficient consecutive agreement.")
